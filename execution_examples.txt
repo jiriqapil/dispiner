@@ -1,0 +1,216 @@
+================================================================================
+dispiner - EXECUTION GUIDE
+================================================================================
+This document provides ready-to-use commands for running dispiner across
+different execution environments: cloud virtual machines (GitHub Codespaces), local 
+workstations (Docker/Apptainer), and HPC cluster environments (Singularity/Mamba with OpenPBS).
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. DEMO RUNS (Fast Verification - Single Command Default Run)
+   1.1 Cloud Virtual Machine (GitHub Codespaces - Browser / Zero Setup)
+   1.2 Local PC (Docker)
+   1.3 Local PC (Apptainer)
+   1.4 HPC Cluster / OpenPBS (Singularity Pure Container)
+
+2. SMALL PROJECT / TESTING (Custom Dataset & Config)
+   2.1 Local PC (Docker)
+   2.2 Local PC (Apptainer)
+
+3. HPC PRODUCTION (Big Data)
+   3.1 Singularity Container Flow (Recommended)
+   3.2 Native Mamba Environment Flow (Developer Mode)
+
+================================================================================
+1. DEMO RUNS (Fast Verification - Single Command Default Run)
+================================================================================
+
+1.1 Cloud Virtual Machine (GitHub Codespaces - Browser / Zero Setup)
+------------------------------------------------------------------
+#Prerequisite: Signed in to GitHub (no local Docker or installation required).
+# 1. Click to launch: https://github.com/codespaces/new?repo=jiriqapil/dispiner
+# 2. Once the browser terminal opens, run:
+docker build -t dispiner:test .
+docker run --rm -it -v "$(pwd)/demo_results":/app/demo/output dispiner:test
+
+# mount edited config.env, task_list, ..
+mkdir -p ./demo_results_upd
+docker run --rm -it \
+  -v "$(pwd)/demo_results_upd":/app/demo/output \
+  -v "$(pwd)/config.env":/app/config.env \
+  -v "$(pwd)/demo/input/task_list_demo.csv":/app/demo/input/task_list_demo.csv \
+  -v "$(pwd)/JUNK":/app/demo/input/META/ETOPO \
+  ghcr.io/jiriqapil/dispiner:v1.0.0
+
+
+1.2 Local PC (Docker)
+---------------------
+docker run --rm -v "$(pwd)/demo/output":/app/demo/output ghcr.io/jiriqapil/dispiner:v1.0.0
+
+
+1.3 Local PC (Apptainer)
+------------------------
+mkdir -p demo/output 
+apptainer exec --pwd /app --writable-tmpfs -B "$(pwd)/demo/output":/app/demo/output docker://ghcr.io/jiriqapil/dispiner:v1.0.0 python3 /app/run.py
+
+#install aptainer (ubuntu)
+sudo add-apt-repository -y ppa:apptainer/ppa
+sudo apt update
+sudo apt install -y apptainer
+
+
+1.4 HPC Cluster / OpenPBS (Singularity Pure Container)
+------------------------------------------------------
+# 1. Initialize workspace and extract container image payload
+singularity pull dispiner.sif docker://ghcr.io/jiriqapil/dispiner:v1.0.0
+singularity exec dispiner.sif cp -r /app/. .
+
+# 2. Set working environment variables
+export HOST_PWD=$(pwd)
+
+# 3. Edit config.env in working directory
+sed -i "s|\./|${HOST_PWD}/|g" config.env
+sed -i 's/SUBMIT_MODE=.*/SUBMIT_MODE=hpc/g' config.env
+
+# 4. Run Orchestrator Container
+singularity exec --pwd /app --writable-tmpfs \
+  -B /storage:/storage \
+  -B "$(pwd)":/app \
+  dispiner.sif python3 /app/run.py
+
+# 5. Patch container paths to host absolute storage paths in generated PBS scripts
+sed -i "s|/app/|$(pwd)/|g" batch_execution/batch_*/submit_batch_*.pbs 2>/dev/null || true
+sed -i "s|/app/|$(pwd)/|g" batch_execution/spool_queue.sh
+
+# 6. Dispatch PBS batch jobs to OpenPBS queue
+bash batch_execution/spool_queue.sh
+
+
+================================================================================
+2. SMALL PROJECT / TESTING (Custom Dataset & User Config)
+================================================================================
+
+2.1 Local PC (Docker)
+---------------------
+# 1. Prepare workspace and download template codebase
+rm -rf dispiner_Test && mkdir -p dispiner_Test && cd dispiner_Test
+docker run --rm -v "$(pwd)":/app/out ghcr.io/jiriqapil/dispiner:v1.0.0 cp -r /app/. /app/out/
+
+# 2. Edit config.env in working directory (Set custom paths, inputs, and parameters)
+export HOST_PWD=$(pwd)
+sed -i "s|\./|${HOST_PWD}/|g" config.env
+
+# 3. Execute processing with custom config mounted
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "$(pwd)":/app \
+  -v /mnt:/mnt \
+  ghcr.io/jiriqapil/dispiner:v1.0.0 \
+  python3 /app/run.py
+
+2.2 Local PC (Apptainer)
+------------------------
+# 1. Prepare workspace and pull container
+rm -rf dispiner_Test && mkdir -p dispiner_Test && cd dispiner_Test
+apptainer pull dispiner.sif docker://ghcr.io/jiriqapil/dispiner:v1.0.0
+apptainer exec dispiner.sif cp -r /app/. .
+
+# 2. Edit config.env in working directory (Set custom paths, inputs, and parameters)
+export HOST_PWD=$(pwd)
+sed -i "s|\./|${HOST_PWD}/|g" config.env
+
+# 3. Execute processing with custom config mounted
+apptainer exec --pwd /app --writable-tmpfs -B "$(pwd)":/app dispiner.sif python3 /app/run.py
+
+###==========
+# ------------------------------------------------------------------------------
+# Alternative Workflow: to test INPUT_DIR=/mnt/data/my_real_dataset/input
+# ------------------------------------------------------------------------------
+# 1: Initialize workspace and extract config, task list, & demo input payload
+wget https://raw.githubusercontent.com/jiriqapil/dispiner/main/config.env -O config.env
+wget https://raw.githubusercontent.com/jiriqapil/dispiner/main/demo/input/task_list_demo.csv -O task_list_demo.csv
+apptainer exec docker://ghcr.io/jiriqapil/dispiner:v1.0.0 cp -r /app/demo/input ./demo/ 2>/dev/null || true
+
+# 2: Edit Configuration (config.env) & Task List
+# Example config.env setup:
+#   INPUT_DIR=./demo/input
+#   OUTPUT_DIR=/mnt/data/junk_apptainer/demo/outpu
+#   TASK_LIST=/mnt/data/junk_apptainer/task_list_demo.csv
+nano config.env
+nano task_list_demo.csv
+
+# 3: Convert OUTPUT_DIR and TASK_LIST relative paths (if any) to absolute host paths
+export HOST_PWD=$(pwd)
+sed -i "s|OUTPUT_DIR=\./|OUTPUT_DIR=${HOST_PWD}/|g" config.env
+sed -i "s|TASK_LIST=\./|TASK_LIST=${HOST_PWD}/|g" config.env
+
+# 4: Execute via Apptainer
+apptainer exec --pwd /work --writable-tmpfs \
+  -B "$(pwd)/config.env":/app/config.env \
+  -B "$(pwd)":/work \
+  -B /mnt:/mnt \
+  docker://ghcr.io/jiriqapil/dispiner:v1.0.0 \
+  bash -c "python3 /app/run.py; cp -rn /app/batch_execution /work/ 2>/dev/null || true; cp -rn /app/run_*.log /work/ 2>/dev/null || true"
+
+
+================================================================================
+3. HPC PRODUCTION (Big Data)
+================================================================================
+
+3.1 Singularity Container Flow (Recommended)
+---------------------------------------------------
+# 1. Initialize workspace and fetch full codebase + SIF container
+rm -rf dispiner_Prod && mkdir -p dispiner_Prod && cd dispiner_Prod
+singularity pull dispiner.sif docker://ghcr.io/jiriqapil/dispiner:v1.0.0
+# Extract app contents cleanly, skipping .git to prevent permission errors
+singularity exec dispiner.sif tar --exclude='.git' -cf - -C /app . | tar -xf -
+
+# 2. Set working environment variables
+export HOST_PWD=$(pwd)
+
+# 3. Edit config.env in working directory for production workload
+sed -i "s|\./|${HOST_PWD}/|g" config.env
+sed -i 's/SUBMIT_MODE=.*/SUBMIT_MODE=hpc/g' config.env
+sed -i 's/NTASKS_IN_BATCH=.*/NTASKS_IN_BATCH=1000/g' config.env
+
+# 4. Generate batch templates via Container Orchestrator
+singularity exec --pwd /app --writable-tmpfs \
+  -B /storage:/storage \
+  -B "$(pwd)":/app \
+  dispiner.sif python3 /app/run.py
+
+# 5. Patch container paths in generated PBS submit scripts
+sed -i "s|/app/|$(pwd)/|g" batch_execution/batch_*/submit_batch_*.pbs 2>/dev/null || true
+sed -i "s|/app/|$(pwd)/|g" batch_execution/spool_queue.sh
+
+# 6. Dispatch all job arrays to the OpenPBS scheduler
+bash batch_execution/spool_queue.sh
+
+
+3.2 Native Mamba Environment Flow (Developer Mode)
+------------------------------------------
+# 1. Initialize workspace and fetch codebase from GitHub repository
+rm -rf dispiner_Prod_Native && mkdir -p dispiner_Prod_Native && cd dispiner_Prod_Native
+wget -qO- https://github.com/jiriqapil/dispiner/archive/refs/heads/main.tar.gz | tar -xz --strip-components=1
+
+# 2. Activate Mamba environment
+module add mambaforge || true
+source "$(conda info --base)/etc/profile.d/conda.sh" 2>/dev/null || true
+
+# (Optional: Build environment from requirements.txt if not created yet)
+# mamba create -n dummybox-mamba-env --file requirements.txt -y
+mamba activate dummybox-mamba-env
+
+# 3. Set working environment variables
+export HOST_PWD=$(pwd)
+
+# 4. Edit config.env in working directory for production workload
+sed -i "s|\./|${HOST_PWD}/|g" config.env
+sed -i 's/SUBMIT_MODE=.*/SUBMIT_MODE=hpc/g' config.env
+sed -i 's/NTASKS_IN_BATCH=.*/NTASKS_IN_BATCH=1000/g' config.env
+
+# 5. Run Orchestrator natively (Auto-generates batches and submits PBS jobs via hpc.sh)
+python3 run.py
+
+================================================================================
