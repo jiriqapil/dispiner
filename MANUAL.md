@@ -1,4 +1,4 @@
-![](../../figures/dispiner_logo.png)
+![](../../Logos/dispiner_logo.png)
 # Manual
 
 ---
@@ -407,7 +407,7 @@ Operational submit modes include:
 
 ### 6.3 Execution Examples
 
-For comprehensive, step-by-step instructions and ready-to-use commands across GitHub Codespaces, local Docker/Apptainer containers, and HPC cluster environments, refer to **`execution_examples.txt`**.
+For comprehensive, step-by-step instructions and ready-to-use commands across GitHub Codespaces, local Docker/Apptainer containers, and HPC cluster environments, refer to **[execution_examples.txt](./execution_examples.txt)**.
 
 ----
 ## 7. Output Data Organization

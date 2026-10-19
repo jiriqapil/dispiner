@@ -1,4 +1,4 @@
-![](../../figures/dispiner_logo.png)
+![](../../Logos/dispiner_logo.png)
 ## dispiner
 
 ---
@@ -86,5 +86,5 @@ You can run a zero-setup verification test directly in your browser using GitHub
 
 ---
 ## Documentation
-* **`MANUAL.md`:** Comprehensive operational guidelines, container setup, batch execution details, and database harvesting workflows.
+- **[MANUAL.md](./MANUAL.md):** Comprehensive operational guidelines, container setup, batch execution details, and database harvesting workflows.
 ---
