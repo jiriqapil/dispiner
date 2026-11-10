@@ -1,7 +1,5 @@
 # Light mode logo
-![Manual Logo](./figures/logos/Logo_whiteboard_100dpi.png#gh-light-mode-only)
-# Dark mode logo
-![Manual Logo](./figures/logos/Logo_blackboard_100dpi.png#gh-dark-mode-only)
+![](./figures/logos/Logo_whiteboard_100dpi.png)
 
 # Manual
 
