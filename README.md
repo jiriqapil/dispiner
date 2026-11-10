@@ -1,4 +1,4 @@
-![](../../Logos/dispiner_logo.png)
+![](./figures/logos/Logo_blackboard_100dpi.png)
 ## dispiner
 
 ---

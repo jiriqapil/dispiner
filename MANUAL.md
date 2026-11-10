@@ -1,4 +1,4 @@
-![](../../Logos/dispiner_logo.png)
+![](./figures/logos/Logo_whiteboard_100dpi.png)
 # Manual
 
 ---
