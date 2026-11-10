@@ -1,4 +1,4 @@
-# Light mode logo
+<!-- Light mode logo -->
 ![](./figures/logos/Logo_whiteboard_100dpi.png)
 
 # Manual

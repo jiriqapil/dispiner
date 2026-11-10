@@ -1,4 +1,4 @@
-# Dark mode logo
+<!-- Dark mode logo -->
 ![](./figures/logos/Logo_blackboard_100dpi.png)
 
 ## dispiner
